@@ -1,0 +1,134 @@
+schema_version = 1
+
+# ─── PERMISSIONS ─────────────────────────────────────────────────────────────
+#
+# Declares what each whitelisted plugin is allowed to do at runtime.
+# Enforced by the Lua network_shim. A plugin calling something outside its
+# declared permissions is blocked and the violation is written to the audit log.
+#
+# Tokens:
+#   git               may spawn git subprocesses
+#   format            may run local tools (formatters, linters, rg, fzf, fd)
+#   build             may compile code or run build scripts (make, cargo, cc)
+#   install           may download and install tooling (mason only)
+#   shell             may spawn interactive shells (toggleterm, rnvimr)
+#   network:localhost  may connect to localhost (LSP servers, DAP adapters)
+#   network:internet   may make outbound internet connections (Copilot, etc.)
+
+[permissions]
+"Comment.nvim"              = []
+"CopilotChat.nvim"          = ["network:internet"]
+"FixCursorHold.nvim"        = []
+"LuaSnip"                   = ["build"]
+"alpha-nvim"                = []
+"barbar.nvim"               = []
+"blink.cmp"                 = ["build", "network:localhost"]
+"bufstack.nvim"             = []
+"catppuccin"                = []
+"codediff.nvim"             = ["git"]
+"conform.nvim"              = ["format"]
+"copilot.vim"               = ["network:internet"]
+"diffview.nvim"             = ["git"]
+"fidget.nvim"               = []
+"fzf-lua"                   = ["format"]
+"gitsigns.nvim"             = ["git"]
+"go.nvim"                   = ["git", "format", "build"]
+"guihua.lua"                = []
+"harpoon"                   = []
+"lazy.nvim"                 = []
+"lazydev.nvim"              = []
+"lualine.nvim"              = []
+"markview.nvim"             = []
+"mason.nvim"                = ["network:internet", "install"]
+"mini.nvim"                 = []
+"mini.pick"                 = ["format"]
+"modicator.nvim"            = []
+"neogit"                    = ["git"]
+"neotest"                   = ["format", "network:localhost"]
+"neotest-jest"              = ["format"]
+"neovim-project"            = ["git"]
+"neovim-session-manager"    = []
+"ng.nvim"                   = ["network:localhost"]
+"nui.nvim"                  = []
+"nvim-dap"                  = ["network:localhost"]
+"nvim-dap-go"               = ["network:localhost", "build"]
+"nvim-dap-ui"               = ["network:localhost"]
+"nvim-dap-virtual-text"     = []
+"nvim-lspconfig"            = ["network:localhost"]
+"nvim-nio"                  = []
+"nvim-surround"             = []
+"nvim-treesitter"           = ["build", "network:internet"]
+"nvim-web-devicons"         = []
+"onedark.nvim"              = []
+"plenary.nvim"              = []
+"resession.nvim"            = []
+"rnvimr"                    = ["shell"]
+"snacks.nvim"               = ["git", "format"]
+"telescope-fzf-native.nvim" = ["build"]
+"telescope-ui-select.nvim"  = []
+"telescope.nvim"            = ["format"]
+"todo-comments.nvim"        = ["format"]
+"toggleterm.nvim"           = ["shell"]
+"trouble.nvim"              = []
+"vim-quickrun"              = ["shell", "format"]
+"which-key.nvim"            = []
+
+# ─── SANDBOX ─────────────────────────────────────────────────────────────────
+#
+# Paths the sandboxed Neovim process is blocked from accessing.
+# protected_read blocks reading raw secrets (private keys, tokens).
+# protected_write is belt-and-suspenders on top of chflags/chattr immutability.
+#
+# SSH *config* and *gitconfig* are intentionally NOT in protected_read so that
+# git subprocesses spawned by neogit/diffview can read them normally.
+
+[sandbox]
+protected_read = [
+  "~/.ssh/id_rsa",
+  "~/.ssh/id_ed25519",
+  "~/.ssh/id_ecdsa",
+  "~/.ssh/id_dsa",
+  "~/.claude/credentials",
+  "~/.aws/credentials",
+  "~/.gnupg/",
+]
+
+protected_write = [
+  "~/.claude/",
+  "~/.copilot/",
+  "~/.vscode/",
+  "~/.gitconfig",
+  "~/.ssh/",
+]
+
+# ─── BROKER ──────────────────────────────────────────────────────────────────
+#
+# The credential broker is a small daemon (nvim-broker) that runs *outside* the
+# sandbox with its own access controls. Plugins never read credential files
+# directly — they request them through the broker's Unix socket. The broker
+# enforces per-plugin policy before returning anything.
+#
+# This means the raw private key or token never enters the Neovim process at
+# all. The broker returns only what the plugin needs (e.g. a signed SSH
+# challenge, not the key itself).
+#
+# The sandbox explicitly whitelists this one socket path so the Neovim process
+# can connect to it.
+
+[broker]
+enabled = false
+socket_path = "/tmp/nvim-broker.sock"
+
+# Timeout for broker responses in milliseconds.
+timeout_ms = 2000
+
+# ─── AUDIT ───────────────────────────────────────────────────────────────────
+#
+# Runtime audit log. Every permission check (pass or fail), every file hash
+# mismatch, and every sandbox violation is written here as newline-delimited
+# JSON. Set ship_endpoint to send events to a central collector.
+
+[audit]
+log_path = "~/.local/share/nvim/audit.log"
+ship_endpoint = ""
+ship_on_violation = true

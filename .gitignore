@@ -1,0 +1,19 @@
+# Built binaries (root only — does not affect cmd/ source directories)
+/nvim-wrapper
+/nvim-manifest
+/nvim-mirror
+/nvim-scan
+/nvim-hook-sanitizer
+
+# Signing keys — never commit
+*.pem
+*.key
+manifest/plugins.json.sig
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
