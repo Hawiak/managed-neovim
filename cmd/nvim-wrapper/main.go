@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"managed-nvim/internal/manifest"
@@ -10,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+
+	"github.com/BurntSushi/toml"
 )
 
 var protectedFiles = []string{
@@ -64,6 +67,30 @@ func main() {
 		}
 	}
 	os.Exit(exitCode)
+}
+
+// Config is a map string key => string slice structure
+type Config struct {
+	Permissions map[string][]string `toml:"permissions"`
+}
+
+func loadConfig(home string) *Config {
+	exe, _ := os.Executable()
+	// Look for config in multiple locations, first next to the binary, then in the repo layout, then in the user's config directory.
+	candidates := []string{
+		filepath.Join(filepath.Dir(exe), "managed-nvim.toml"),
+		filepath.Join(home, ".config", "managed-nvim", "managed-nvim.toml"),
+		"/opt/managed-nvim/managed-nvim.toml",
+	}
+
+	for _, c := range candidates {
+		var cfg Config
+		if _, err := toml.DecodeFile(c, &cfg); err == nil {
+			return &cfg // Return the first config that can be loaded successfully as a reference to avoid copying the whole struct
+		}
+	}
+	return nil
+
 }
 
 // looks for the real NVIM binary Checks for nvim.real binary or a path to the real nvim in NVIM_REAL env var. Exits with error if not found.
@@ -195,6 +222,11 @@ func exportManagedEnv(home string) {
 	os.Setenv("MANAGED_NVIM_MANIFEST_DATE", m.LastUpdated)
 	os.Setenv("MANAGED_NVIM_PLUGIN_COUNT", strconv.Itoa(len(m.Plugins)))
 	os.Setenv("MANAGED_NVIM_SCHEMA_VERSION", strconv.Itoa(m.SchemaVersion))
+	if cfg := loadConfig(home); cfg != nil && cfg.Permissions != nil {
+		if b, err := json.Marshal(cfg.Permissions); err == nil {
+			os.Setenv("MANAGED_NVIM_PERMISSIONS", string(b))
+		}
+	}
 }
 
 // Runs nvim in a subprocess, wrapped in the OS sandbox.

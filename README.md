@@ -135,8 +135,8 @@ managed-nvim/
 | 7 | `nvim-wrapper` Linux (chattr + Landlock) | STUB |
 | 8 | `nvim/init.lua` skeleton + load order | DONE |
 | 9 | `managed/whitelist.lua` | DONE |
-| 10 | `managed/network_shim.lua` | TODO |
-| 11 | `managed/hooks_blocker.lua` + `managed/audit.lua` | TODO |
+| 10 | `managed/network_shim.lua` | DONE |
+| 11 | `managed/hooks_blocker.lua` + `managed/audit.lua` | DONE |
 | 12 | `nvim-hook-sanitizer` CLI | TODO |
 | 13 | `scripts/install.sh` | TODO |
 | 14 | deb + rpm packaging | TODO |
