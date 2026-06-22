@@ -142,14 +142,17 @@ managed-nvim/
 │   ├── platform_darwin.go    # chflags + sandbox-exec
 │   ├── platform_linux.go     # chattr (Landlock stub)
 │   └── sandbox_check.go      # --sandbox-check diagnostic
-├── internal/manifest/
-│   └── manifest.go           # Plugin and Manifest types, Load/Save
-├── nvim/
-│   ├── init.lua
-│   └── lua/managed/
-│       ├── whitelist.lua
-│       ├── network_shim.lua
-│       ├── hooks_blocker.lua
-│       └── audit.lua
-└── managed-nvim.toml         # local dev config
+├── internal/
+│   ├── manifest/
+│   │   └── manifest.go           # Plugin and Manifest types, Load/Save
+│   └── luaruntime/
+│       ├── runtime.go            # embeds nvim/, extracts to cache on startup
+│       └── nvim/                 # Lua config — embedded into binary at build time
+│           ├── init.lua          # loads managed layer, then user's config
+│           └── lua/managed/
+│               ├── whitelist.lua
+│               ├── network_shim.lua
+│               ├── hooks_blocker.lua
+│               └── audit.lua
+└── managed-nvim.toml             # local dev config
 ```

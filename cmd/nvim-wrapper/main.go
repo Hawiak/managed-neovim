@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"managed-nvim/internal/luaruntime"
 	"managed-nvim/internal/manifest"
 	"os"
 	"os/exec"
@@ -187,9 +188,14 @@ func hashPath(path string) (string, error) {
 // build the :ManagedNeovim status page. Called before launching nvim so the
 // values are inherited by the child process.
 func exportManagedEnv(home string) {
-	exe, _ := os.Executable()
 	os.Setenv("MANAGED_NVIM", "1")
-	os.Setenv("MANAGED_NVIM_RUNTIME", filepath.Join(filepath.Dir(exe), "nvim"))
+
+	runtimeDst := filepath.Join(cacheDir(home), "runtime")
+	if err := luaruntime.Extract(runtimeDst); err != nil {
+		fmt.Fprintf(os.Stderr, "nvim-wrapper: failed to extract Lua runtime: %v\n", err)
+	} else {
+		os.Setenv("MANAGED_NVIM_RUNTIME", runtimeDst)
+	}
 
 	if sandboxActive() {
 		os.Setenv("MANAGED_NVIM_SANDBOX", "1")
@@ -214,6 +220,7 @@ func exportManagedEnv(home string) {
 	// Resolve manifest path — cache dir first, then fallback locations
 	manifestPath := os.Getenv("MANAGED_NVIM_MANIFEST_PATH")
 	if manifestPath == "" {
+		exe, _ := os.Executable()
 		candidates := []string{
 			filepath.Join(cacheDir(home), "plugins.json"),
 			filepath.Join(filepath.Dir(exe), "manifest", "plugins.json"),
@@ -246,6 +253,13 @@ func exportManagedEnv(home string) {
 
 // Runs nvim in a subprocess, wrapped in the OS sandbox.
 func runNvim(nvimPath string, args []string, home string) int {
+	if runtimePath := os.Getenv("MANAGED_NVIM_RUNTIME"); runtimePath != "" {
+		managedInit := filepath.Join(runtimePath, "init.lua")
+		if _, err := os.Stat(managedInit); err == nil {
+			args = append([]string{"-u", managedInit}, args...)
+		}
+	}
+
 	cmd := exec.Command(nvimPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
