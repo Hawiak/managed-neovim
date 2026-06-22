@@ -1,5 +1,10 @@
 schema_version = 1
 
+
+[manifest]
+url = "https://raw.githubusercontent.com/username/repo/branch/managed-nvim.toml"
+signing_key = ""
+
 # ─── PERMISSIONS ─────────────────────────────────────────────────────────────
 #
 # Declares what each whitelisted plugin is allowed to do at runtime.

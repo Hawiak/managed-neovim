@@ -69,15 +69,22 @@ func main() {
 	os.Exit(exitCode)
 }
 
+type ManifestConfig struct {
+	URL        string `toml:"url"`
+	SigningKey string `toml:"signing_key"`
+}
+
 // Config is a map string key => string slice structure
 type Config struct {
 	Permissions map[string][]string `toml:"permissions"`
+	Manifest    ManifestConfig      `toml:"manifest"`
 }
 
 func loadConfig(home string) *Config {
 	exe, _ := os.Executable()
 	// Look for config in multiple locations, first next to the binary, then in the repo layout, then in the user's config directory.
 	candidates := []string{
+		filepath.Join(cacheDir(home), "plugins.json"),
 		filepath.Join(filepath.Dir(exe), "managed-nvim.toml"),
 		filepath.Join(home, ".config", "managed-nvim", "managed-nvim.toml"),
 		"/opt/managed-nvim/managed-nvim.toml",
@@ -190,13 +197,26 @@ func exportManagedEnv(home string) {
 		os.Setenv("MANAGED_NVIM_SANDBOX", "0")
 	}
 
+	cfg := loadConfig(home)
+
+	// Try to fetch a fresh manifest into the cache
+	if cfg != nil {
+		if err := fetchManifest(home, cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "nvim-wrapper: manifest update failed: %v\n", err)
+		}
+		if cfg.Permissions != nil {
+			if b, err := json.Marshal(cfg.Permissions); err == nil {
+				os.Setenv("MANAGED_NVIM_PERMISSIONS", string(b))
+			}
+		}
+	}
+
+	// Resolve manifest path — cache dir first, then fallback locations
 	manifestPath := os.Getenv("MANAGED_NVIM_MANIFEST_PATH")
 	if manifestPath == "" {
-		// Default: next to the wrapper binary, then fall back to the repo layout.
-		exe, _ := os.Executable()
 		candidates := []string{
+			filepath.Join(cacheDir(home), "plugins.json"),
 			filepath.Join(filepath.Dir(exe), "manifest", "plugins.json"),
-			filepath.Join(home, ".local", "share", "managed-nvim", "plugins.json"),
 			"/opt/managed-nvim/manifest/plugins.json",
 		}
 		for _, c := range candidates {
@@ -222,11 +242,6 @@ func exportManagedEnv(home string) {
 	os.Setenv("MANAGED_NVIM_MANIFEST_DATE", m.LastUpdated)
 	os.Setenv("MANAGED_NVIM_PLUGIN_COUNT", strconv.Itoa(len(m.Plugins)))
 	os.Setenv("MANAGED_NVIM_SCHEMA_VERSION", strconv.Itoa(m.SchemaVersion))
-	if cfg := loadConfig(home); cfg != nil && cfg.Permissions != nil {
-		if b, err := json.Marshal(cfg.Permissions); err == nil {
-			os.Setenv("MANAGED_NVIM_PERMISSIONS", string(b))
-		}
-	}
 }
 
 // Runs nvim in a subprocess, wrapped in the OS sandbox.
